@@ -6,8 +6,8 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-face-aframe.prod.js"></script>
     <script>
       document.addEventListener("DOMContentLoaded", function() {
-	const list = ["glasses1", "glasses2", "hat1", "hat2", "earring"];
-	const visibles = [true, false, false, true, true];
+	const list = ["glasses1", "glasses2", "hat1", "hat2", "earring","new"];
+	const visibles = [true, false, false, false, false];
 	const setVisible = (button, entities, visible) => {
 	  if (visible) {
 	    button.classList.add("selected");
@@ -31,31 +31,41 @@
     </script>
     <style>
       body {
-        margin: 0;
+          margin: 0;
+          overflow: hidden; /* Prevent scrolling of the entire page */
       }
       .example-container {
-        overflow: hidden;
-        position: absolute;
-        width: 100%;
-        height: 100%;
+          overflow: hidden;
+          position: absolute;
+          width: 100%;
+          height: 100%;
       }
       .options-panel {
-	position: fixed;
-	left: 0;
-	top: 0;
-	z-index: 2;
+          position: fixed;
+          bottom: 0;
+          left: 50%; /* Position at the center horizontally */
+          transform: translateX(-50%); /* Center the panel horizontally */
+          z-index: 2;
+          width: 80%; /* Adjust the width as needed */
+          overflow-x: auto; /* Allow horizontal scrolling */
+          white-space: nowrap; /* Keep all icons on one line */
+         /* background-color: rgba(255, 255, 255, 0.5); /* Semi-transparent background */
+          padding: 10px; /* Add padding for better appearance */
+          border-radius: 50px; /* Make the panel circular */
       }
       .options-panel img {
-	border: solid 2px;
-	width: 50px;
-	height: 50px;
-	object-fit: cover;
-	cursor: pointer;
+          border: solid 2px;
+          width: 50px;
+          height: 50px;
+          object-fit: cover;
+          cursor: pointer;
+          border-radius: 50%; /* Make the images circular */
+          margin-right: 10px; /* Add some space between icons */
       }
       .options-panel img.selected {
-	border-color: green;
+          border-color: green;
       }
-    </style>
+  </style>
   </head>
   <body>
     <div class="example-container">
@@ -65,6 +75,84 @@
 	<img id="glasses1" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/face-tracking/assets/glasses/thumbnail.png"/>
 	<img id="glasses2" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/face-tracking/assets/glasses2/thumbnail.png"/>
 	<img id="earring" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/face-tracking/assets/earring/thumbnail.png"/>
+  
+	<img id="new" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/face-tracking/assets/glasses/thumbnail.png"/>
+  
+  <button id="startRecording">Start Recording</button>
+  <button id="stopRecording" disabled>Stop Recording</button>
+  <button id="saveRecording" disabled>Save Recording</button>
+  <button id="recordedVideo" hidden></button>   
+  <script>
+      // Selecting DOM elements
+      const startRecordingBtn = document.getElementById('startRecording');
+      const stopRecordingBtn = document.getElementById('stopRecording');
+      const saveRecordingBtn = document.getElementById('saveRecording');
+      const recordedVideo = document.getElementById('recordedVideo');
+      let mediaRecorder;
+      let recordedChunks = [];
+
+      // Event listener for start recording button
+      startRecordingBtn.addEventListener('click', async () => {
+          try {
+              // Get screen stream
+              const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+
+              // Create MediaRecorder instance
+              mediaRecorder = new MediaRecorder(screenStream);
+
+              // Event listener for dataavailable event
+              mediaRecorder.ondataavailable = event => {
+                  if (event.data.size > 0) {
+                      recordedChunks.push(event.data);
+                  }
+              };
+
+              // Event listener for stop event
+              mediaRecorder.onstop = () => {
+                  // Create a video blob from recorded chunks
+                  const videoBlob = new Blob(recordedChunks, { type: 'video/webm' });
+
+                  // Create a video URL from the blob
+                  const videoURL = URL.createObjectURL(videoBlob);
+
+                  // Set recorded video source
+                  recordedVideo.src = videoURL;
+
+                  // Enable start recording button, disable stop recording button, enable save recording button
+                  startRecordingBtn.disabled = false;
+                  stopRecordingBtn.disabled = true;
+                  saveRecordingBtn.disabled = false;
+
+                  // Enable download of the recorded video
+                  saveRecordingBtn.addEventListener('click', () => {
+                      const a = document.createElement('a');
+                      document.body.appendChild(a);
+                      a.style = 'display: none';
+                      a.href = videoURL;
+                      a.download = 'recorded_video.webm';
+                      a.click();
+                      window.URL.revokeObjectURL(videoURL);
+                  });
+              };
+
+              // Start recording
+              mediaRecorder.start();
+
+              // Enable stop recording button and disable start recording button
+              startRecordingBtn.disabled = true;
+              stopRecordingBtn.disabled = false;
+          } catch (error) {
+              console.error('Error accessing screen stream:', error);
+          }
+      });
+
+      // Event listener for stop recording button
+      stopRecordingBtn.addEventListener('click', () => {
+          // Stop recording
+          mediaRecorder.stop();
+      });
+  </script>
+
       </div>
       <a-scene mindar-face embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
         <a-assets>
@@ -74,9 +162,16 @@
           <a-asset-item id="hatModel" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/face-tracking/assets/hat/scene.gltf"></a-asset-item>
           <a-asset-item id="hatModel2" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/face-tracking/assets/hat2/scene.gltf"></a-asset-item>
           <a-asset-item id="earringModel" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/face-tracking/assets/earring/scene.gltf"></a-asset-item>
+          
+          <a-asset-item id="new" src="scene(1).gltf"></a-asset-item>
+
         </a-assets>
         <a-camera active="false" position="0 0 0"></a-camera>
 	<!-- head occluder -->
+  <a-entity mindar-face-target="anchorIndex: 168">
+    <a-gltf-model rotation="0 -0 0" position="0 0 0" scale="0.05 0.05 0.05" src="#new" class="glasses1-entity" visible="false"></a-gltf-model>
+ </a-entity>
+
         <a-entity mindar-face-target="anchorIndex: 168">
 	  <a-gltf-model mindar-face-occluder position="0 -0.3 0.15"rotation="0 0 0" scale="0.065 0.065 0.065" src="#headModel"></a-gltf-model>
         </a-entity>
